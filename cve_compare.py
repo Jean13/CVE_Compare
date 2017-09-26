@@ -289,7 +289,9 @@ def vulnerability_scan(installations_file, nvd_file):
 def main():
 
     # List installed packages
-    list_packages()
+    location = input("[?] Do you want to run a local scan (L) for installed packages or use an existing file (F)? \n[*] Enter L or F: ")
+    if location == "L" or location == "l":
+        list_packages()
 
     # Get NIST Vulnerability Database CVE data
     get_cves()
