@@ -179,7 +179,7 @@ def compare_bulletin(vulnerabilities_file):
         for i in msb:
             split_content = i.split(",")
             try:
-                csv = split_content[13]
+                cve = split_content[13]
                 kb = split_content[2]
                 kb = "KB" + kb
 
@@ -196,20 +196,21 @@ def compare_bulletin(vulnerabilities_file):
         if len(unique_list) == 0:
             print("[*] No matches found.\n")
 
-        # Compare the KBs against those already installed.
-        print("[!] Missing KB:")
-        try:
-            for b in unique_list:
-                # Run PowerShell Get-HotFix to find missing security updates
-                p = subprocess.Popen(["powershell.exe", "-ep", "Bypass", "Get-HotFix", "-Id", kb],
-                                        stdout = sys.stdout)
+        if len(unique_list) > 1:
+            # Compare the KBs against those already installed.
+            print("[!] Missing KB:")
+            try:
+                for b in unique_list:
+                    # Run PowerShell Get-HotFix to find missing security updates
+                    p = subprocess.Popen(["powershell.exe", "-ep", "Bypass", "Get-HotFix", "-Id", kb],
+                                            stdout = sys.stdout)
 
-                # Print output
-                p.communicate()
-            print()
+                    # Print missing KBs
+                    print(b)
+                print()
 
-        except Exception as e:
-            print(e)
+            except Exception as e:
+                print(e)
 
     except Exception as e:
         print(e)
