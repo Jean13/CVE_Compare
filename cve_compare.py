@@ -39,6 +39,32 @@ def check_existence(filename):
 
 
 '''
+Download a file.
+'''
+def download_file(url, filename):
+    req = requests.get(url, stream=True)
+    with open(filename, "wb") as f:
+        for chunk in req.iter_content():
+            f.write(chunk)
+
+
+'''
+Unzip a file.
+'''
+def unzip(filename):
+    with zipfile.ZipFile(filename, "r") as zipf:
+        zipf.extractall()
+
+
+'''
+Delete a file.
+'''
+def del_file(filename):
+    if os.path.isfile(filename):
+        os.remove(filename)
+
+
+'''
 Run PowerShell command to get a list of all installed software including:
     * Name
     * Version
@@ -80,10 +106,11 @@ def get_cves():
         print("[*] Updating CVE data...\n")
 
         while year <= current_year:
-            url = "https://static.nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-" + \
-            str(year) + ".json.zip"
             filename = "nvdcve-1.0-" + str(year) + ".json.zip"
-            unzipped = "nvdcve-1.0-" + str(year) + ".json"
+
+            url = "https://static.nvd.nist.gov/feeds/json/cve/1.0/" + filename
+
+            unzipped = filename[:-4]
 
             # Update year to download next file
             year += 1
@@ -93,18 +120,13 @@ def get_cves():
                 continue
 
             # Download file
-            req = requests.get(url, stream=True)
-            with open(filename, "wb") as f:
-                for chunk in req.iter_content():
-                    f.write(chunk)
+            download_file(url, filename)
 
             # Extract ZIP contents
-            with zipfile.ZipFile(filename, "r") as zipf:
-                zipf.extractall()
+            unzip(filename)
 
             # Delete ZIP file
-            if os.path.isfile(filename):
-                os.remove(filename)
+            del_file(filename)
 
 
 '''
@@ -130,10 +152,7 @@ def compare_bulletin(vulnerabilities_file):
 
     else:
         # Download file
-        req = requests.get(url, stream=True)
-        with open(fn, "wb") as f:
-            for chunk in req.iter_content():
-                f.write(chunk)
+        download_file(url, fn)
 
     if check_existence(csv_file):
         print("[*] You already have the Security Bulletin CSV file.\n")
