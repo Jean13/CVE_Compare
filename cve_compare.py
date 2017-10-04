@@ -200,13 +200,14 @@ def compare_bulletin(vulnerabilities_file):
             # Compare the KBs against those already installed.
             print("[!] Missing KB:")
             try:
-                for b in unique_list:
+                for kb in unique_list:
                     # Run PowerShell Get-HotFix to find missing security updates
                     p = subprocess.Popen(["powershell.exe", "-ep", "Bypass", "Get-HotFix", "-Id", kb],
                                             stdout = sys.stdout)
 
                     # Print missing KBs
-                    print(b)
+                    print(kb)
+                    p.communicate()
                 print()
 
             except Exception as e:
