@@ -65,6 +65,18 @@ def del_file(filename):
 
 
 '''
+Current date in string format.
+'''
+def time_string():
+    now = datetime.now()
+    year = str(now.year)
+    month = str(now.month)
+    day = str(now.day)
+
+    return year, month, day
+ 
+
+'''
 Run PowerShell command to get a list of all installed software including:
     * Name
     * Version
@@ -184,7 +196,8 @@ def compare_bulletin(vulnerabilities_file):
                 kb = "KB" + kb
 
                 for line in content:
-                    if cve in line:
+                    # Check length to avoid blank entries
+                    if cve in line and len(cve) > 3:
                         kb_list.append(kb)
 
             except Exception as e:
@@ -209,10 +222,18 @@ def compare_bulletin(vulnerabilities_file):
                     print(kb)
                     p.communicate()
                 print()
-
+               
             except Exception as e:
                 print(e)
 
+            # Save list of missing KBs to timestamped file.
+            current_year, current_month, current_day = time_string()
+
+            unique_array = current_year + current_month + current_day + "_unique_kb.txt"
+            with open(unique_array, "a+", encoding="latin-1") as f:
+                for item in unique_list:
+                    f.write("{}\n".format(item))
+                  
     except Exception as e:
         print(e)
 
@@ -291,10 +312,7 @@ def vulnerability_scan(installations_file, nvd_file):
     '''
     Save the discovered vulnerabilities to a timestamped text file.
     '''
-    now = datetime.now()
-    current_year = str(now.year)
-    current_month = str(now.month)
-    current_day = str(now.day)
+    current_year, current_month, current_day = time_string()
 
     latest_scan = current_year + current_month + current_day + "_scan.txt"
 
