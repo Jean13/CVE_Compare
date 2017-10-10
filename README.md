@@ -1,6 +1,7 @@
 # CVE_Compare
 
 Version 1.1
+
 Jean Gonzalez
 
 Dependencies:
