@@ -32,3 +32,18 @@ $filename = "installed.txt"
 $newFileName = [DateTime]::Now.ToString("yyyy") + "_" + $filename
 Move-Item -LiteralPath $filename -Destination $newFileName
 Remove-Item $filename
+
+
+# Get the Windows version details
+$ver = Get-WmiObject -class win32_operatingsystem | select Caption,ServicePackMajorVersion,OSArchitecture
+#Add-Content -Path $newFileName -Value $h
+#Add-Content -Path $newFileName -Value $ver
+$ver_file = "windows_version.txt"
+$ver >> $ver_file
+
+
+# Get list of installed KB's
+wmic qfe get HotFixID","InstalledOn
+$get_kb = wmic qfe get HotFixID
+$kb_file = "kb_list.txt"
+$get_kb >> $kb_file
