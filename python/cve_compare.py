@@ -1,10 +1,10 @@
 '''
 CVE Compare
-Version 1.1
+Version 1.2
 
 Functionality:
-Scans software in operating system (Windows) and compares against the
-NIST Vulnerability Database to identify present vulnerabilities.
+Scans software in Windows and compares against the
+NIST Vulnerability Database (NVD) to identify present vulnerabilities.
 Includes optional scan for Microsoft hotfixes and patches.
 
 Identifies:
@@ -17,6 +17,7 @@ Identifies:
 
 Hotfix/Patch Scan Identifies:
     * Missing KBs as per identified vulnerabilities
+    * Missing KBs as per last applied hotfix date
 '''
 
 import subprocess, sys, os
@@ -187,6 +188,17 @@ def compare_bulletin(vulnerabilities_file):
         with open(csv_file, "r", encoding="latin-1") as csvf:
             msb = csvf.readlines()
 
+        # Local scan vs. compare files
+        location = input("[?] Do you want to run a local scan (L) or use an existing file (F)? \n[*] Enter L or F: ")
+
+        if location == "F" or location == "f":
+            version = input("Enter the Windows version (E.g., Windows 7): ")
+            last_day = int(input("Enter the date of the last installed KB (E.g., 20170220): "))
+
+            # Load the KB file
+            with open("kb_list.txt", "r", encoding="latin-1") as kbl:
+                kb_file = kbl.readlines()
+
         kb_list = []
         for i in msb:
             split_content = i.split(",")
@@ -195,10 +207,24 @@ def compare_bulletin(vulnerabilities_file):
                 kb = split_content[2]
                 kb = "KB" + kb
 
-                for line in content:
-                    # Check length to avoid blank entries
-                    if cve in line and len(cve) > 3:
-                        kb_list.append(kb)
+                windows = split_content[6]
+                d = split_content[0]
+                date = d.replace("-", "")
+                date = int(date)
+
+                # Local scan
+                if location == "L" or location == "l":
+                    for line in content:
+                        # Check length to avoid blank entries
+                        if cve in line and len(cve) > 3:
+                            kb_list.append(kb)
+
+                # Compare kb file to MSB by date and Windows version
+                if location == "F" or location == "f":
+                    if date > last_day:
+                        if version in windows:
+                            if kb not in kb_file:
+                                kb_list.append(kb)
 
             except Exception as e:
                 pass
@@ -208,23 +234,28 @@ def compare_bulletin(vulnerabilities_file):
         unique_list = np.unique(kb_list)
         if len(unique_list) == 0:
             print("[*] No matches found.\n")
+            print()
 
         if len(unique_list) > 1:
-            # Compare the KBs against those already installed.
             print("[!] Missing KB:")
-            try:
-                for kb in unique_list:
-                    # Run PowerShell Get-HotFix to find missing security updates
-                    p = subprocess.Popen(["powershell.exe", "-ep", "Bypass", "Get-HotFix", "-Id", kb],
-                                            stdout = sys.stdout)
 
-                    # Print missing KBs
-                    print(kb)
-                    p.communicate()
-                print()
-               
-            except Exception as e:
-                print(e)
+            # Compare the KBs against those already installed.
+            if location == "L" or location == "l":
+                try:
+                    for kb in unique_list:
+                        # Run PowerShell Get-HotFix to find missing security updates
+                        p = subprocess.Popen(["powershell.exe", "-ep", "Bypass", "Get-HotFix", "-Id", kb],
+                                                stdout = sys.stdout)
+
+                        # Print missing KBs
+                        print(kb)
+                        p.communicate()
+                    print()
+
+                except Exception as e:
+                    print(e)
+
+            print()
 
             # Save list of missing KBs to timestamped file.
             current_year, current_month, current_day = time_string()
@@ -233,7 +264,7 @@ def compare_bulletin(vulnerabilities_file):
             with open(unique_array, "a+", encoding="latin-1") as f:
                 for item in unique_list:
                     f.write("{}\n".format(item))
-                  
+
     except Exception as e:
         print(e)
 
