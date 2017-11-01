@@ -156,7 +156,7 @@ Compare potential vulnerabilities' CVEs against those in the MSB file.
 '''
 def compare_bulletin(vulnerabilities_file):
     url = "http://download.microsoft.com/download/6/7/3/673E4349-1CA5-40B9-8879-095C72D5B49D/BulletinSearch.xlsx"
-    fn = "Security_Updates.xlsx"
+    fn = "BulletinSearch.xlsx"
     sheet_name = "Bulletin Search"
     csv_file = fn[:-4] + "csv"
 
