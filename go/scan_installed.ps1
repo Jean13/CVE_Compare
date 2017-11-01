@@ -1,7 +1,9 @@
 $ErrorActionPreference = "Continue"
 
+$arch = Get-WmiObject -class win32_operatingsystem | select -expand OSArchitecture
+
 # First try with Windows 64-bit
-if ([Environment]::Is64BitOperatingSystem)
+if ($arch -eq "64-bit")
 {
   # Get installed packages information (Windows 64-bit)
   $a = Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*
