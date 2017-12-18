@@ -22,7 +22,6 @@ Hotfix/Patch Scan Identifies:
 
 import subprocess, sys, os
 from datetime import datetime
-from pathlib import Path
 import requests
 import zipfile
 import json
@@ -34,8 +33,8 @@ import pandas as pd
 Check whether a file already exists.
 '''
 def check_existence(filename):
-    the_file = Path(filename)
-    if the_file.is_file():
+    the_file = os.path.isfile(filename)
+    if the_file:
         return True
 
 
@@ -160,19 +159,16 @@ def compare_bulletin(vulnerabilities_file):
     sheet_name = "Bulletin Search"
     csv_file = fn[:-4] + "csv"
 
-    if check_existence(fn):
-        print("\n[*] You have already downloaded the Security Updates Bulletin.\n")
-
-    else:
-        # Download file
-        download_file(url, fn)
-
     if check_existence(csv_file):
         print("[*] You already have the Security Bulletin CSV file.\n")
 
     else:
+        # Download file
+        download_file(url, fn)
         # Convert from XLSX to CSV
         xlsx_to_csv(fn, sheet_name, csv_file)
+        # Delete the XLSX
+        del_file(fn)
 
     # Potential vulnerabilities file
     try:
