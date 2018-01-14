@@ -104,7 +104,7 @@ def get_cves():
 
     # Current year
     now = datetime.now()
-    current_year = int(now.year)
+    current_year = now.year
     latest_file = "nvdcve-1.0-" + str(current_year) + ".json"
 
 
@@ -151,6 +151,23 @@ def xlsx_to_csv(fn, sn, csv_file):
 
 
 '''
+Add column and data to CSV file.
+'''
+def csv_add_column(filename, column_name, data):
+    try:
+        df = pd.read_csv(filename, keep_default_na=False)
+
+        data = pd.Series(data)
+        df[column_name] = data
+
+        # Save changes
+        df.to_csv(filename, index=False)
+
+    except Exception as e:
+        print(e)
+
+
+'''
 Read Microsoft Security Bulletin (MSB); XLSX file.
 Compare potential vulnerabilities' CVEs against those in the MSB file.
 '''
@@ -183,6 +200,8 @@ def compare_bulletin(vulnerabilities_file):
     try:
         # Load the Microsoft Security Bulletin (MSB) workbook and worksheet
         with open(csv_file, "r", encoding="latin-1") as csvf:
+            # Skip header
+            next(csvf)
             msb = csvf.readlines()
 
         # Local scan vs. compare files
@@ -191,7 +210,6 @@ def compare_bulletin(vulnerabilities_file):
         if location == "F" or location == "f":
             version = input("Enter the Windows version (E.g., Windows 7): ")
             last_day = int(input("Enter the date of the last installed KB (E.g., 20170220): "))
-
             # Load the KB file
             with open("kb_list.txt", "r", encoding="latin-1") as kbl:
                 kb_file = kbl.readlines()
@@ -229,38 +247,44 @@ def compare_bulletin(vulnerabilities_file):
 
         # Unique list of KBs
         unique_list = np.unique(kb_list)
-        if len(unique_list) == 0:
+        if unique_list.size == 0:
             print("[*] No matches found.\n")
             print()
 
-        if len(unique_list) > 1:
+        if unique_list.size > 0:
             print("[!] Missing KB:")
 
             # Compare the KBs against those already installed.
-            if location == "L" or location == "l":
-                try:
-                    for kb in unique_list:
-                        # Run PowerShell Get-HotFix to find missing security updates
-                        p = subprocess.Popen(["powershell.exe", "-ep", "Bypass", "Get-HotFix", "-Id", kb],
-                                                stdout = sys.stdout)
+            try:
+                for kb in unique_list:
+                    # Run PowerShell Get-HotFix to find missing security updates
+                    p = subprocess.Popen(["powershell.exe", "-ep", "Bypass", "Get-HotFix", "-Id", kb],
+                                            stdout = sys.stdout)
 
-                        # Print missing KBs
-                        print(kb)
-                        p.communicate()
-                    print()
+                    # Print missing KBs
+                    print(kb)
+                    p.communicate()
+                print()
 
-                except Exception as e:
-                    print(e)
+            except Exception as e:
+                print(e)
 
             print()
 
             # Save list of missing KBs to timestamped file.
             current_year, current_month, current_day = time_string()
 
-            unique_array = current_year + current_month + current_day + "_unique_kb.txt"
+            unique_array = current_year + current_month + current_day + "_unique_kb.csv"
             with open(unique_array, "a+", encoding="latin-1") as f:
+                writer = csv.writer(f)
+                writer.writerow(["Missing KBs"])
                 for item in unique_list:
-                    f.write("{}\n".format(item))
+                    writer.writerow([item])
+                f.close()
+
+
+            # Save list of missing KBs to the Vulnerabilities file.
+            csv_add_column(latest_scan, "KBs", unique_list)
 
     except Exception as e:
         print(e)
@@ -276,8 +300,8 @@ Outputs a file with content that shows:
     * CVSS V3 Base Severity
     * CVE Description
 '''
-def vulnerability_scan(installations_file, nvd_file):
-    global temp, latest_scan, no
+def vulnerability_scan(installations_file, nvd_file, device_data, os):
+    global temp, latest_scan
 
     # Installed packages file
     with open(installations_file, "r", encoding="latin-1") as fd:
@@ -290,13 +314,14 @@ def vulnerability_scan(installations_file, nvd_file):
     # Time-stamped file with discovered vulnerabilities.
     current_year, current_month, current_day = time_string()
     latest_scan = current_year + current_month + current_day + "_scan.csv"
+    date_scanned = current_year + '-' + current_month + '-' + current_day
 
     # Temporary file will have duplicates
     temp = "temp_scan.csv"
     with open(temp, 'a+') as sf:
         writer = csv.writer(sf)
         # Write headers
-        writer.writerow(["#", "Vendor", "Product", "Version", "CVE ID", "Severity", "Description"])
+        writer.writerow(["Vendor", "Product", "Version", "CVE ID", "Severity", "Score", "Vector String", "Description", "Date Scanned", "Device Data", "Operating System"])
 
     sf.close()
 
@@ -320,10 +345,15 @@ def vulnerability_scan(installations_file, nvd_file):
                     cve_id = j["cve"]["CVE_data_meta"]["ID"]
                     # CVE CVSS V3 Base Severity
                     cve_severity = j["impact"]["baseMetricV3"]["cvssV3"]["baseSeverity"]
+                    # CVE CVSS V3 Base Score
+                    cve_score = j["impact"]["baseMetricV3"]["cvssV3"]["baseScore"]
+                    # CVSS Vector String
+                    vector_string = j["impact"]["baseMetricV3"]["cvssV3"]["vectorString"]
                     # CVE Description
                     cve_description = j["cve"]["description"]["description_data"][0]["value"]
                     # Remove commas from CVE Description. This is done so as to keep the CSV format.
                     cve_description = cve_description.replace(',', '')
+
 
                     '''
                     Performing matching.
@@ -331,8 +361,7 @@ def vulnerability_scan(installations_file, nvd_file):
                     '''
                     try:
                         if product in installed_name and version in installed_version:
-                            writer.writerow([no, vendor, product, version, cve_id, cve_severity, cve_description])
-                            no += 1
+                            writer.writerow([vendor, product, version, cve_id, cve_severity, cve_score, vector_string, cve_description, date_scanned, device_data, os])
 
                     except Exception as e:
                         print(e)
@@ -364,9 +393,27 @@ def print_file(file_to_print):
     print("")
 
 
+def csv_enum(filename):
+    try:
+        df = pd.read_csv(filename, keep_default_na=False)
+        idx = 0
+
+        # Count rows
+        enume = []
+        for i, row in df.iterrows():
+            enume.append(i)
+
+        # Insert an enumeration row
+        df.insert(loc=idx, column="No", value=enume)
+        # Save changes
+        df.to_csv(filename, index=False)
+
+    except Exception as e:
+        print(e)
+
+
 def main():
-    global no
-    
+
     # List installed packages
     location = input("[?] Do you want to run a local scan (L) for installed packages or use an existing file (F)? \n[*] Enter L or F: ")
     if location == "L" or location == "l":
@@ -380,12 +427,29 @@ def main():
 
     # Current data
     now = datetime.now()
-    current_month = int(now.month)
-    current_year = int(now.year)
+    current_month = now.month
+    current_year = now.year
     latest_nvd = "nvdcve-1.0-" + str(current_year) + ".json"
 
-    # Counter for vulnerabilities discovered.
-    no = 0
+    # Device data - Vendor and Version
+    device_data = ''
+    try:
+        with open('vendor_version.txt', 'r') as fp:
+            device_data = fp.readline()
+            device_data = device_data[3:-2]
+            device_data = device_data.replace('  ', ' ')
+    except:
+        pass
+
+    # Operating System Data
+    os = ''
+    try:
+        with open('windows_ver.txt', 'r') as fn:
+            lines = fn.readlines()
+            os = lines[6]
+            os = ''.join(os)
+    except:
+        pass
 
     # Run vulnerability scan
     while year <= current_year:
@@ -394,7 +458,7 @@ def main():
             nvd_file = "nvdcve-1.0-" + str(year) + ".json"
 
             print("Scanning year: " + str(year))
-            vulnerability_scan(host_file, nvd_file)
+            vulnerability_scan(host_file, nvd_file, device_data, os)
 
             # Update year to scan next file
             year += 1
@@ -403,6 +467,10 @@ def main():
 
     # Create vulnerabilities file without duplicates
     unique_file(temp, latest_scan)
+
+    # Clean up
+    del_file("vendor_version.txt")
+    del_file("windows_ver.txt")
 
     # Print contents of vulnerabilities file
     print_yo = input("[*] Do you want to print the contents of the vulnerabilities file?\n \
@@ -417,6 +485,9 @@ Note that this is a CSV file, better viewed externally.\n: ")
 
     if scan_patches == "Yes" or scan_patches == "yes" or scan_patches == "Y" or scan_patches == "y":
         compare_bulletin(latest_scan)
+
+    # Enumerate rows in vulnerabilities CSV file.
+    csv_enum(latest_scan)
 
 
 main()
