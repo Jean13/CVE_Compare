@@ -1,6 +1,6 @@
 '''
 CVE Compare
-Version 1.3
+Version 1.5
 
 Functionality:
 Scans software in Windows and compares against the
@@ -321,7 +321,7 @@ def vulnerability_scan(installations_file, nvd_file, device_data, os):
     with open(temp, 'a+') as sf:
         writer = csv.writer(sf)
         # Write headers
-        writer.writerow(["Vendor", "Product", "Version", "CVE ID", "Severity", "Score", "Vector String", "Description", "Date Scanned", "Device Data", "Operating System"])
+        writer.writerow(["Vendor", "Product", "Version", "CVE ID", "Severity", "Score", "Vector String", "Description", "CVE Released", "Date Scanned", "Device Data", "Operating System"])
 
     sf.close()
 
@@ -353,6 +353,9 @@ def vulnerability_scan(installations_file, nvd_file, device_data, os):
                     cve_description = j["cve"]["description"]["description_data"][0]["value"]
                     # Remove commas from CVE Description. This is done so as to keep the CSV format.
                     cve_description = cve_description.replace(',', '')
+                    # Date the CVE was published
+                    cve_released = j["publishedDate"]
+                    cve_released = cve_released[:10]
 
 
                     '''
@@ -361,7 +364,7 @@ def vulnerability_scan(installations_file, nvd_file, device_data, os):
                     '''
                     try:
                         if product in installed_name and version in installed_version:
-                            writer.writerow([vendor, product, version, cve_id, cve_severity, cve_score, vector_string, cve_description, date_scanned, device_data, os])
+                            writer.writerow([vendor, product, version, cve_id, cve_severity, cve_score, vector_string, cve_description, cve_released, date_scanned, device_data, os])
 
                     except Exception as e:
                         print(e)
@@ -410,6 +413,53 @@ def csv_enum(filename):
 
     except Exception as e:
         print(e)
+
+
+def installed2csv(installations_file, destination_file, device_data):
+    # Name of the device being tested
+    product_name = device_data
+
+    # Installed packages file
+    with open(installations_file, "r", encoding="latin-1") as fd:
+        # Skip headers
+        next(fd)
+        next(fd)
+        installed_data = fd.readlines()
+
+    # Create CSV file
+    with open(destination_file, 'a+') as sf:
+        writer = csv.writer(sf)
+        # Write headers
+        writer.writerow(["Product Name", "Software", "Software Version", "Software Publisher", "Install Date"])
+
+    sf.close()
+
+    # Write data to file
+    with open(destination_file, 'a+') as sf:
+        writer = csv.writer(sf)
+
+        for i in installed_data:
+            split_content = i.split(",")
+            try:
+                if split_content[0] == "":
+                    pass
+                else:
+                    software_name = split_content[0].replace('"', '')
+                    software_version = split_content[1].replace('"', '')
+                    software_publisher = split_content[2].replace('"', '')
+                    install_date = split_content[3]
+                    #install_date = install_date.replace('"', '')
+
+                    writer.writerow([product_name, software_name, software_version, software_publisher, install_date])
+
+            except Exception as e:
+                print(e)
+
+
+def remove_blanklines(fn):
+    df = pd.read_csv(fn, keep_default_na=False)
+    df.dropna()
+    df.to_csv(fn, index=False)
 
 
 def main():
@@ -468,10 +518,6 @@ def main():
     # Create vulnerabilities file without duplicates
     unique_file(temp, latest_scan)
 
-    # Clean up
-    del_file("vendor_version.txt")
-    del_file("windows_ver.txt")
-
     # Print contents of vulnerabilities file
     print_yo = input("[*] Do you want to print the contents of the vulnerabilities file?\n \
 Note that this is a CSV file, better viewed externally.\n: ")
@@ -487,7 +533,25 @@ Note that this is a CSV file, better viewed externally.\n: ")
         compare_bulletin(latest_scan)
 
     # Enumerate rows in vulnerabilities CSV file.
-    csv_enum(latest_scan)
+    #csv_enum(latest_scan)
+
+    # Date in string format
+    current_year, current_month, current_day = time_string()
+
+    # Copy the installed data txt contents to a CSV file.
+    installations_file = current_year + "_installed.txt"
+    destination_file = current_year + "_installed.csv"
+    installed2csv(installations_file, destination_file, device_data)
+
+    # Remove blank lines from CSV
+    remove_blanklines(destination_file)
+
+    unique_kb_file = current_year + current_month + current_day + "_unique_kb.csv"
+    remove_blanklines(unique_kb_file)
+
+    # Clean up
+    del_file("vendor_version.txt")
+    del_file("windows_ver.txt")
 
 
 main()
