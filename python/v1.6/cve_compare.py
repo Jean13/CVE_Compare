@@ -344,7 +344,7 @@ def vulnerability_scan(installations_file, nvd_file, device_data, os, operating_
                     if operating_system == "W":
                         installed_name = split_content[0]
                         installed_name = installed_name.replace(' ', '_').lower()
-                        installed_version = split_content[1]
+                        installed_version = split_content[1].strip('"')
                     if operating_system == "L":
                         installed_name = split_content[1]
                         installed_name = installed_name.replace(' ', '_').lower()
@@ -353,14 +353,42 @@ def vulnerability_scan(installations_file, nvd_file, device_data, os, operating_
                     # Vulnerable Software Data
                     vendor = j["cve"]["affects"]["vendor"]["vendor_data"][0]["vendor_name"]
                     product = j["cve"]["affects"]["vendor"]["vendor_data"][0]["product"]["product_data"][0]["product_name"]
-                    version = j["cve"]["affects"]["vendor"]["vendor_data"][0]["product"]["product_data"][0]["version"]["version_data"][0]["version_value"]
+                    v_list = j["cve"]["affects"]["vendor"]["vendor_data"][0]["product"]["product_data"][0]["version"]["version_data"]
+                    v_arr = [n["version_value"] for n in v_list]
+
+                    for v in v_arr:
+                        if v in installed_version:
+                            version = v
+
+                            #if "10.0.45.2" in version:
+                            #    print(product + " " + version)
+                            #    print(installed_version)
+
+
                     cve_id = j["cve"]["CVE_data_meta"]["ID"]
-                    # CVE CVSS V3 Base Severity
-                    cve_severity = j["impact"]["baseMetricV3"]["cvssV3"]["baseSeverity"]
-                    # CVE CVSS V3 Base Score
-                    cve_score = j["impact"]["baseMetricV3"]["cvssV3"]["baseScore"]
-                    # CVSS Vector String
-                    vector_string = j["impact"]["baseMetricV3"]["cvssV3"]["vectorString"]
+
+                    try:
+                        # If older metric version, v2
+                        if "baseMetricV2" in j["impact"]:
+                            # CVE CVSS V2 Base Severity
+                            cve_severity = j["impact"]["baseMetricV2"]["severity"]
+                            # CVE CVSS V2 Base Score
+                            cve_score = j["impact"]["baseMetricV2"]["cvssV2"]["baseScore"]
+                            # CVSS Vector String
+                            vector_string = j["impact"]["baseMetricV2"]["cvssV2"]["vectorString"]
+
+                        # Otherwise, it's the newer v3
+                        else:
+                            # CVE CVSS V3 Base Severity
+                            cve_severity = j["impact"]["baseMetricV3"]["cvssV3"]["baseSeverity"]
+                            # CVE CVSS V3 Base Score
+                            cve_score = j["impact"]["baseMetricV3"]["cvssV3"]["baseScore"]
+                            # CVSS Vector String
+                            vector_string = j["impact"]["baseMetricV3"]["cvssV3"]["vectorString"]
+
+                    except Exception as e:
+                        print(e)
+
                     # CVE Description
                     cve_description = j["cve"]["description"]["description_data"][0]["value"]
                     # Remove commas from CVE Description. This is done so as to keep the CSV format.
@@ -375,7 +403,7 @@ def vulnerability_scan(installations_file, nvd_file, device_data, os, operating_
                     If installed packages are present in NVD CVE data file, identify it.
                     '''
                     try:
-                        if product in installed_name and version in installed_version:
+                        if product in installed_name and version == installed_version:
                             writer.writerow([vendor, product, version, cve_id, cve_severity, cve_score, vector_string, cve_description, cve_released, date_scanned, device_data, os])
 
                     except Exception as e:
@@ -570,6 +598,8 @@ Note that this is a CSV file, better viewed externally.\n: ")
 
         if scan_patches == "Yes" or scan_patches == "yes" or scan_patches == "Y" or scan_patches == "y":
             compare_bulletin(latest_scan)
+            unique_kb_file = current_year + current_month + current_day + "_unique_kb.csv"
+            remove_blanklines(unique_kb_file)
 
         # Enumerate rows in vulnerabilities CSV file.
         #csv_enum(latest_scan)
@@ -578,15 +608,12 @@ Note that this is a CSV file, better viewed externally.\n: ")
         current_year, current_month, current_day = time_string()
 
         # Copy the installed data txt contents to a CSV file.
-        installations_file = current_year + "_installed.txt"
-        destination_file = current_year + "_installed.csv"
+        installations_file = current_year + "_installed_windows.txt"
+        destination_file = current_year + "_installed_windows.csv"
         installed2csv(installations_file, destination_file, device_data)
 
         # Remove blank lines from CSV
         remove_blanklines(destination_file)
-
-        unique_kb_file = current_year + current_month + current_day + "_unique_kb.csv"
-        remove_blanklines(unique_kb_file)
 
         # Clean up
         del_file("vendor_version.txt")
