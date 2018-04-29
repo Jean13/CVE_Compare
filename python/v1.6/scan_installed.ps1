@@ -26,7 +26,7 @@ else
 $registries | Select-Object DisplayName, DisplayVersion, Publisher, InstallDate | Format-Table -AutoSize
 
 # Save information to CSV file
-$registries | Select-Object DisplayName, DisplayVersion, Publisher, InstallDate | Export-Csv installed.txt
+$registries | Select-Object DisplayName, DisplayVersion, Publisher, InstallDate | Export-Csv installed_windows.txt
 
 
 # Timestamp file
