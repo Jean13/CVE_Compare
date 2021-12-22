@@ -102,8 +102,8 @@ def list_packages():
 
 '''
 Download CVE data from NVD for year in (zipped) JSON format
-    * URL: https://static.nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-<YEAR>.json.zip
-    * Unzipped filename: nvdce-1.0-<YEAR>.json
+    * URL: https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-<YEAR>.json.zip
+    * Unzipped filename: nvdce-1.1-<YEAR>.json
 '''
 def get_cves():
     # Oldest available year in JSON format
@@ -112,7 +112,7 @@ def get_cves():
     # Current year
     now = datetime.now()
     current_year = now.year
-    latest_file = "nvdcve-1.0-" + str(current_year) + ".json"
+    latest_file = "nvdcve-1.1-" + str(current_year) + ".json"
 
 
     '''
@@ -126,9 +126,9 @@ def get_cves():
         print("[*] Updating CVE data...\n")
 
         while year <= current_year:
-            filename = "nvdcve-1.0-" + str(year) + ".json.zip"
+            filename = "nvdcve-1.1-" + str(year) + ".json.zip"
 
-            url = "https://static.nvd.nist.gov/feeds/json/cve/1.0/" + filename
+            url = "https://nvd.nist.gov/feeds/json/cve/1.1/" + filename
 
             unzipped = filename[:-4]
 
@@ -523,7 +523,7 @@ def main():
     now = datetime.now()
     current_month = now.month
     current_year = now.year
-    latest_nvd = "nvdcve-1.0-" + str(current_year) + ".json"
+    latest_nvd = "nvdcve-1.1-" + str(current_year) + ".json"
 
     if operating_system == "W":
         # Device data - Vendor and Version
@@ -566,7 +566,7 @@ def main():
             if operating_system == "L":
                 host_file = str(current_year) + "_installed_linux.csv"
 
-            nvd_file = "nvdcve-1.0-" + str(year) + ".json"
+            nvd_file = "nvdcve-1.1-" + str(year) + ".json"
 
             print("Scanning year: " + str(year))
             vulnerability_scan(host_file, nvd_file, device_data, os, operating_system)
