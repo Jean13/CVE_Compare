@@ -1,5 +1,7 @@
 # CVE_Compare
 
+**NOTE: As of March 2022 the NVD (previously standard) format is not being followed consistently in the entries and has thus broken functionality. This project is (currently) no longer being maintained. If, as expected, the code is no longer working, then I encourage you to address and suggest changes to properly consume and handle the JSON feeds.**
+
 Version 1.6
 
 Jean Gonzalez
